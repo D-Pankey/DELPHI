@@ -15,22 +15,34 @@ numerizer <- function(x){
 ui <- navbarPage("DELPHI",
                  tabPanel("Home"),
                  tabPanel("Design",
-                          fluidRow(
-                            column(4,
+                          
+                          fluidRow(align="center",
+                            column(12, 
                                    radioButtons("designSelector", "Dose-Escalation Design", choices = c("3+3"=1, "TARGET-CRM"=2, "Both"=3), 
-                                                selected = 1, inline = TRUE),
-                                   textInput("designDoseLabels", "Dose Level Labels", value = "-1,1,2,3"),
-                                   selectInput("designStartLevel", "Starting Dose Level", choices = c(-1,1,2,3), selected = 1),
+                                              selected = 1, inline = TRUE))),
+                          
+                          wellPanel(
+                          fluidRow(align="center",
+                            column(6, align="center",
+                                          textInput("designDoseLabels", "Dose Level Labels", value = "-1,1,2,3")),
+                            column(6, align="center",
+                                          selectInput("designStartLevel", "Starting Dose Level", choices = c(-1,1,2,3), selected = 1)
+                          )))
+                            ,
+                          fluidRow(align="center",
                                    uiOutput("designInputs"),
-                                   actionButton("designSimulate", "Simulate")
-                            ),
+                                   actionButton("designSimulate", "Simulate"))
+                            ,
+                          fluidRow(align="center",
                             tabBox(width=8,
                                    tabPanel("MTD Plot", withSpinner(plotlyOutput("designPlotly1"), type = 7, color = "#003087", size = 2)
                                    ),
                                    tabPanel("DLT Plot", withSpinner(plotlyOutput("designPlotly2"), type = 7, color = "#003087", size = 2)
+                                   ),
+                                   tabPanel("Patient Allocation Plot", withSpinner(plotlyOutput("designPlotly3"), type = 7, color = "#003087", size = 2)
                                    )
-                            )
-                          )
+                            ))
+                          
                  ),
                  tabPanel("Conduct"),
                  tabPanel("Help")
@@ -44,29 +56,49 @@ server <- function(input, output, session) {
     # 3+3
     if (input$designSelector == 1) {
       tagList(
-        sliderInput("designTargetTox", "Target Toxicity Probability", min = 0, max = 1, value = 0.2, step = 0.1),
-        sliderInput("designNumTrials", "Number of Simulated Trials", min = 0, max = 10000, value = 100),
-        textInput("designTrueTox", "True Toxicity Probability Vector", value = "0.05,0.12,0.2,0.3"),
-        sliderInput("designArrivalRate", "Patient Enrollment Rate", min = 0, max = 180, value = 15),
-        sliderInput("designPropB", "Proportion of Patients from Cohort B", min = 0, max = 1, value = 0.1, step = 0.1),
-        sliderInput("designCycleLength", "Duration of DLT Observation Period", min = 0, max = 365, value = 28)
+        
+        wellPanel(
+        fluidRow(align="center",
+          column(6,align="center",
+        sliderInput("designTargetTox", "Target Toxicity Probability", min = 0, max = 1, value = 0.2, step = 0.1)),
+          column(6,align="center",
+        textInput("designTrueTox", "True Toxicity Probability Vector", value = "0.05,0.12,0.2,0.3")))),
+        wellPanel(
+        fluidRow(align="center",
+        column(6,align="center",
+          sliderInput("designCycleLength", "Duration of DLT Observation Period", min = 0, max = 365, value = 28)),
+        column(6, align="center",
+          sliderInput("designNumTrials", "Number of Simulated Trials", min = 0, max = 10000, value = 100)))),
+        wellPanel(
+        fluidRow(align="center",
+            column(6,align="center",
+                   sliderInput("designArrivalRate", "Patient Enrollment Rate", min = 0, max = 180, value = 15)),
+            column(6,align="center",
+                 sliderInput("designPropB", "Proportion of Patients from Cohort B", min = 0, max = 1, value = 0.1, step = 0.1)))),
         
       )
     }
     # TARGET-CRM or Both
     else {
       tagList(
+        column(4,)
+        wellPanel(
         textInput("designPriorTox", "Prior Toxicity Probability Vector", value = "0.05,0.12,0.2,0.3"),
         sliderInput("designTargetTox2", "Target Toxicity Probability", min = 0, max = 1, value = 0.2, step = 0.1),
-        sliderInput("designNumTrials2", "Number of Simulated Trials", min = 0, max = 10000, value = 100),
         textInput("designTrueTox2", "True Toxicity Probability Vector", value = "0.05,0.12,0.2,0.3"),
+        sliderInput("designNumTrials2", "Number of Simulated Trials", min = 0, max = 10000, value = 100),
+        ),
+        wellPanel(
         sliderInput("designArrivalRate2", "Patient Enrollment Rate", min = 0, max = 180, value = 15),
         sliderInput("designPropB2", "Proportion of Patients from Cohort B", min = 0, max = 1, value = 0.1, step = 0.1),
-        selectInput("designTargetCRM", "Target-CRM Option", choices = c(0,1,2), selected = 1),
         sliderInput("designMaxN", "Maximum Sample Size", min = 1, max = 200, value = 18),
         sliderInput("designMinCohortB", "Minimum Enrollment of Cohort B Patients (Optional)", min = 0, max = 100, value = 2),
+        ),
+        wellPanel(
+        selectInput("designCohortSize", "Cohort Size", choices = c(seq(1,9)), selected = 3),
         sliderInput("designCycleLength2", "Duration of DLT Observation Period", min = 0, max = 365, value = 28),
-        selectInput("designCohortSize", "Cohort Size", choices = c(seq(1,9)), selected = 3)
+        selectInput("designTargetCRM", "Target-CRM Option", choices = c(0,1,2), selected = 1),
+        )
       )
     }
   })
@@ -189,6 +221,28 @@ server <- function(input, output, session) {
         ggtitle("Proportion of Patients Experiencing a DLT Per Dose Level")
       
       ggplotly(p2, tooltip="text") %>% config(displayModeBar = FALSE)
+    }
+  })
+  
+  # Plot3
+  output$designPlotly3 <- renderPlotly({
+    
+    if (input$designSelector ==3){
+      p3 <- designDFPlotly() %>%
+        ggplot(aes(x=DoseLevel, y=patient.allocation.table, fill=Design, text=paste("Dose Level: ", DoseLevel, "\n", "Patient Allocation: ", round(patient.allocation.table, 4), "\n", "Design: ", Design))) + 
+        geom_bar(stat="identity", position="dodge") + xlab("Dose Level") + ylab("Proportion of Patients Allocated") + 
+        ggtitle("Proportion of Patients Allocated to Each Dose Level")
+      
+      ggplotly(p3, tooltip="text") %>% config(displayModeBar = FALSE)
+    }
+    
+    else{
+      p3 <- designDesign()$df %>%
+        ggplot(aes(x=seq(1,length(MTD.Freq)), y=patient.allocation.table, text=paste("Dose Level: ", seq(1,length(MTD.Freq)), "\n", "Patient Allocation: ", round(patient.allocation.table, 4)))) + 
+        geom_bar(stat="identity") + xlab("Dose Level") + ylab("Proportion of Patients Allocated") + 
+        ggtitle("Proportion of Patients Allocated to Each Dose Level")
+      
+      ggplotly(p3, tooltip="text") %>% config(displayModeBar = FALSE)
     }
   })
   
