@@ -16,34 +16,32 @@ ui <- navbarPage("DELPHI",
                  tabPanel("Home"),
                  tabPanel("Design",
                           
-                          fluidRow(align="center",
-                            column(12, 
+                          sidebarLayout(fluid = TRUE,
+              
+                          sidebarPanel(id = "tPanel",style = "overflow-y:scroll; max-height: 600px",align ="center", width = 4,
+                          fluidRow(
+                            column(12,
                                    radioButtons("designSelector", "Dose-Escalation Design", choices = c("3+3"=1, "TARGET-CRM"=2, "Both"=3), 
-                                              selected = 1, inline = TRUE))),
-                          
-                          wellPanel(
-                          fluidRow(align="center",
-                            column(6, align="center",
-                                          textInput("designDoseLabels", "Dose Level Labels", value = "-1,1,2,3")),
-                            column(6, align="center",
-                                          selectInput("designStartLevel", "Starting Dose Level", choices = c(-1,1,2,3), selected = 1)
-                          )))
-                            ,
-                          fluidRow(align="center",
+                                                selected = 1, inline = TRUE),
+                                   textInput("designDoseLabels", "Dose Level Labels", value = "-1,1,2,3"),
+                                   selectInput("designStartLevel", "Starting Dose Level", choices = c(-1,1,2,3), selected = 1),
                                    uiOutput("designInputs"),
-                                   actionButton("designSimulate", "Simulate"))
-                            ,
-                          fluidRow(align="center",
+                                   actionButton("designSimulate", "Simulate")
+                            ))),
+                            mainPanel(
                             tabBox(width=8,
                                    tabPanel("MTD Plot", withSpinner(plotlyOutput("designPlotly1"), type = 7, color = "#003087", size = 2)
                                    ),
                                    tabPanel("DLT Plot", withSpinner(plotlyOutput("designPlotly2"), type = 7, color = "#003087", size = 2)
                                    ),
                                    tabPanel("Patient Allocation Plot", withSpinner(plotlyOutput("designPlotly3"), type = 7, color = "#003087", size = 2)
+                                   ),
+                                   tabPanel("Study Duration Plot", withSpinner(plotlyOutput("designPlotly4"), type = 7, color = "#003087", size = 2)
                                    )
-                            ))
+                            )
+                          )
                           
-                 ),
+                 )),
                  tabPanel("Conduct"),
                  tabPanel("Help")
 )
@@ -56,49 +54,29 @@ server <- function(input, output, session) {
     # 3+3
     if (input$designSelector == 1) {
       tagList(
-        
-        wellPanel(
-        fluidRow(align="center",
-          column(6,align="center",
-        sliderInput("designTargetTox", "Target Toxicity Probability", min = 0, max = 1, value = 0.2, step = 0.1)),
-          column(6,align="center",
-        textInput("designTrueTox", "True Toxicity Probability Vector", value = "0.05,0.12,0.2,0.3")))),
-        wellPanel(
-        fluidRow(align="center",
-        column(6,align="center",
-          sliderInput("designCycleLength", "Duration of DLT Observation Period", min = 0, max = 365, value = 28)),
-        column(6, align="center",
-          sliderInput("designNumTrials", "Number of Simulated Trials", min = 0, max = 10000, value = 100)))),
-        wellPanel(
-        fluidRow(align="center",
-            column(6,align="center",
-                   sliderInput("designArrivalRate", "Patient Enrollment Rate", min = 0, max = 180, value = 15)),
-            column(6,align="center",
-                 sliderInput("designPropB", "Proportion of Patients from Cohort B", min = 0, max = 1, value = 0.1, step = 0.1)))),
+        sliderInput("designTargetTox", "Target Toxicity Probability", min = 0, max = 1, value = 0.2, step = 0.1),
+        sliderInput("designNumTrials", "Number of Simulated Trials", min = 0, max = 10000, value = 100),
+        textInput("designTrueTox", "True Toxicity Probability Vector", value = "0.05,0.12,0.2,0.3"),
+        sliderInput("designArrivalRate", "Patient Enrollment Rate", min = 0, max = 180, value = 15),
+        sliderInput("designPropB", "Proportion of Patients from Cohort B", min = 0, max = 1, value = 0.1, step = 0.1),
+        sliderInput("designCycleLength", "Duration of DLT Observation Period", min = 0, max = 365, value = 28)
         
       )
     }
     # TARGET-CRM or Both
     else {
       tagList(
-        column(4,)
-        wellPanel(
         textInput("designPriorTox", "Prior Toxicity Probability Vector", value = "0.05,0.12,0.2,0.3"),
         sliderInput("designTargetTox2", "Target Toxicity Probability", min = 0, max = 1, value = 0.2, step = 0.1),
-        textInput("designTrueTox2", "True Toxicity Probability Vector", value = "0.05,0.12,0.2,0.3"),
         sliderInput("designNumTrials2", "Number of Simulated Trials", min = 0, max = 10000, value = 100),
-        ),
-        wellPanel(
+        textInput("designTrueTox2", "True Toxicity Probability Vector", value = "0.05,0.12,0.2,0.3"),
         sliderInput("designArrivalRate2", "Patient Enrollment Rate", min = 0, max = 180, value = 15),
         sliderInput("designPropB2", "Proportion of Patients from Cohort B", min = 0, max = 1, value = 0.1, step = 0.1),
+        selectInput("designTargetCRM", "Target-CRM Option", choices = c(0,1,2), selected = 1),
         sliderInput("designMaxN", "Maximum Sample Size", min = 1, max = 200, value = 18),
         sliderInput("designMinCohortB", "Minimum Enrollment of Cohort B Patients (Optional)", min = 0, max = 100, value = 2),
-        ),
-        wellPanel(
-        selectInput("designCohortSize", "Cohort Size", choices = c(seq(1,9)), selected = 3),
         sliderInput("designCycleLength2", "Duration of DLT Observation Period", min = 0, max = 365, value = 28),
-        selectInput("designTargetCRM", "Target-CRM Option", choices = c(0,1,2), selected = 1),
-        )
+        selectInput("designCohortSize", "Cohort Size", choices = c(seq(1,9)), selected = 3)
       )
     }
   })
@@ -246,6 +224,35 @@ server <- function(input, output, session) {
     }
   })
   
+  # Plot4
+  output$designPlotly4 <- renderPlotly({
+    
+    if (input$designSelector ==3){
+      
+      p4df <- data.frame("meanDuration"=c(designDesign()[[1]]$mean.duration, designDesign()[[2]]$meanDuration), 
+                         "sdDuration"=c(designDesign()[[1]]$sd.duration, designDesign()[[2]]$sd.duration), "Design"=c("3+3", "TARGET-CRM"))
+      
+      p4 <- p4df %>%
+        ggplot(aes(x=Design, y=meanDuration, text=paste("Design: ", Design, "\n", "Mean Study Duration: ", round(meanDuration, 2), "\n", "SD Study Duration: ", round(sdDuration, 2)))) + 
+        geom_bar(stat="identity") + geom_errorbar(aes(ymin=meanDuration-sdDuration, ymax=meanDuration+sdDuration)) + 
+        ylab("Mean Study Duration (Days)") + ggtitle("Mean Study Duration in Days (+/- 1 SD)")
+      
+      ggplotly(p4, tooltip="text") %>% config(displayModeBar = FALSE)
+    }
+    
+    else{
+      
+      p4df <- data.frame("meanDuration"=designDesign()$mean.duration, "sdDuration"=designDesign()$sd.duration, "Design"="x")
+      
+      p4 <- p4df %>%
+        ggplot(aes(x=Design, y=meanDuration, text=paste("Mean Study Duration: ", round(meanDuration, 2), "\n", "SD Study Duration: ", round(sdDuration, 2)))) + 
+        geom_bar(stat="identity") + geom_errorbar(aes(ymin=meanDuration-sdDuration, ymax=meanDuration+sdDuration)) + 
+        ylab("Mean Study Duration (Days)") + ggtitle("Mean Study Duration in Days (+/- 1 SD)") + 
+        theme(axis.title.x=element_blank(), axis.text.x=element_blank(), axis.ticks.x=element_blank())
+      
+      ggplotly(p4, tooltip="text") %>% config(displayModeBar = FALSE)
+    }
+  })
 }
 
 shinyApp(ui, server)
